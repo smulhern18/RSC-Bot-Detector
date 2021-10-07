@@ -1,0 +1,14 @@
+
+# miss the folders that have all the data in them, because they real big
+dataFiles
+jsonFiles
+rawData
+processedDatafiles
+
+# Omit the actual archive files
+**/*.zst
+**/*.bz2
+**/*.xz
+
+# Omit .idea, because personal files
+.idea
