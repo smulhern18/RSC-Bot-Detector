@@ -3,7 +3,7 @@ from numpy import logspace, unique
 import rsc
 
 
-def extract_dissimilarity(actual_timestamps, rsc_parameters, numBins):
+def extract_dissimilarity(rsc_parameters, actual_timestamps, num_bins):
 
     synthetic_timestamps = rsc.generate_timestamps(rsc_parameters[0],
                                                    rsc_parameters[1],
@@ -16,7 +16,7 @@ def extract_dissimilarity(actual_timestamps, rsc_parameters, numBins):
                                                    len(actual_timestamps))
 
     synthetic_delays = calcDeltas(synthetic_timestamps)
-    synthetic_counts, centers, bucket_lims = no_centers_log_bin_hist(synthetic_delays, numBins)
+    synthetic_counts, centers, bucket_lims = no_centers_log_bin_hist(synthetic_delays, num_bins)
 
     actual_delays = calcDeltas(actual_timestamps)
     actual_counts = centers_log_bin_hist(actual_delays, centers, bucket_lims)
@@ -36,32 +36,32 @@ def extract_dissimilarity(actual_timestamps, rsc_parameters, numBins):
 def no_centers_log_bin_hist(deltas, num_bins):
     min_exp = log10(min(deltas))
     max_exp = log10(max(deltas))
-    bucket_lims = logspace(min_exp, max_exp, num=num_bins, base=10, dtype=float)
-    bucket_lims = unique(ceil(bucket_lims))
-    centers = [0] * (len(bucket_lims) - 1)
-    for i in range(len(bucket_lims) - 1):
-        centers[i] = bucket_lims[i] + bucket_lims[i+1] - bucket_lims[i]/2
+    bucket_lim = logspace(min_exp, max_exp, num=num_bins, base=10, dtype=float)
+    bucket_lim = unique(ceil(bucket_lim))
+    centers = [0] * (len(bucket_lim) - 1)
+    for i in range(len(bucket_lim) - 1):
+        centers[i] = bucket_lim[i] + bucket_lim[i+1] - bucket_lim[i]/2
 
-    counts = log_bin_hist(deltas, centers, bucket_lims)
+    counts = log_bin_hist(deltas, centers, bucket_lim)
 
-    return counts, centers, bucket_lims
-
-
-def centers_log_bin_hist(deltas, centers, bucket_lims):
-    return log_bin_hist(deltas, centers, bucket_lims)
+    return counts, centers, bucket_lim
 
 
-def log_bin_hist(deltas, centers, bucket_lims):
+def centers_log_bin_hist(deltas, centers, bucket_lim):
+    return log_bin_hist(deltas, centers, bucket_lim)
+
+
+def log_bin_hist(deltas, centers, bucket_lim):
     counts = [1.0] * len(centers)
 
     for i in range(deltas):
-        if deltas[i] < bucket_lims[0]:
+        if deltas[i] < bucket_lim[0]:
             continue
 
         found_bucket = False
         bucket = 0
         for bucket in range(len(centers)+1):
-            bucket_upper_lim = bucket_lims[bucket + 1]
+            bucket_upper_lim = bucket_lim[bucket + 1]
             if deltas[i] > bucket_upper_lim:
                 found_bucket = True
                 break

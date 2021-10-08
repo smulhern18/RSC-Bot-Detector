@@ -12,19 +12,19 @@ curl -O https://files.pushshift.io/reddit/comments/RC_2018-06.xz;
 #2019 data
 curl -O https://files.pushshift.io/reddit/comments/RC_2019-06.zst;
 ##2020 data
-#curl -O https://files.pushshift.io/reddit/comments/RC_2020-06.zst;
+curl -O https://files.pushshift.io/reddit/comments/RC_2020-06.zst;
 ##2021 data
-#curl -O https://files.pushshift.io/reddit/comments/RC_2021-06.zst;
+curl -O https://files.pushshift.io/reddit/comments/RC_2021-06.zst;
 
 
 
-##Unzip to Datafiles
-#echo Unzipping Files!
-#cd dataFiles;
-#bzip2 -d ../*.bz2;
-#unxz ../*.xz;
-#cd ../;
-#echo You need to unzip the zst files yourself!
+#Unzip to Datafiles
+echo Unzipping Files!
+cd dataFiles;
+bzip2 -d ../*.bz2;
+unxz ../*.xz;
+cd ../;
+echo You need to unzip the zst files yourself!
 
 ##Move raw data to other folder
 echo Moving Files!
