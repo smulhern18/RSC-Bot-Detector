@@ -1,5 +1,6 @@
 from math import exp, log, ceil, floor
 import random
+import warnings
 
 NONE = 0
 ACTIVE = 1
@@ -8,16 +9,18 @@ SLEEP = 3
 PREVIOUS_STATE = NONE
 CURRENT_STATE = ACTIVE
 
+warnings.filterwarnings("error")
 
-def generate_timestamps(p_prob,
-                        q_prob,
-                        p_post,
-                        sigma_rest,
-                        sigma_active,
-                        lambda_active,
-                        lambda_rest,
-                        total_sleep,
-                        t_size):
+
+def generate_timestamps(p_prob: float,
+                        q_prob: float,
+                        p_post: float,
+                        sigma_rest: float,
+                        sigma_active: float,
+                        lambda_active: float,
+                        lambda_rest: float,
+                        total_sleep: float,
+                        t_size: int):
 
     global CURRENT_STATE
     global PREVIOUS_STATE
@@ -36,12 +39,11 @@ def generate_timestamps(p_prob,
         rand_numbers.append(random.random())
     rand_numbers_idx = 0
 
-    t = [0] * t_size
+    t = [0.0] * t_size
     mu = previous_active_delay + 1/(lambda_active * exp(1))
     rate = 1/mu
     delay = -log(rand_numbers[rand_numbers_idx])/rate
 
-    rand_numbers_idx += 1
     previous_active_delay = delay
     t[0] = day_start + delay
 
@@ -49,18 +51,18 @@ def generate_timestamps(p_prob,
     t_count = 1
     while t_count < t_size:
         if CURRENT_STATE == ACTIVE:
-            active_delay = calcDelay(sigma_active, previous_active_delay, lambda_active, rand_numbers[rand_numbers_idx])
 
-            if rand_numbers_idx < len(rand_numbers):
+            if rand_numbers_idx < len(rand_numbers)-1:
                 rand_numbers_idx += 1
             else:
                 rand_numbers_idx = 0
+            active_delay = calcDelay(sigma_active, previous_active_delay, lambda_active, rand_numbers[rand_numbers_idx])
 
             previous_active_delay = active_delay
             delay = delay + active_delay
 
             if random.random() < p_post:
-                t[t_count] = t(t_count - 1) + delay
+                t[t_count] = t[t_count - 1] + delay
                 t_count += 1
                 delay = 0
 
@@ -75,12 +77,13 @@ def generate_timestamps(p_prob,
             PREVIOUS_STATE = ACTIVE
 
         elif CURRENT_STATE == REST:
-            rest_delay = calcDelay(sigma_rest, previous_rest_delay, lambda_rest, rand_numbers[rand_numbers_idx])
 
-            if rand_numbers_idx < len(rand_numbers):
+            if rand_numbers_idx < len(rand_numbers)-1:
                 rand_numbers_idx += 1
             else:
                 rand_numbers_idx = 0
+
+            rest_delay = calcDelay(sigma_rest, previous_rest_delay, lambda_rest, rand_numbers[rand_numbers_idx])
 
             previous_rest_delay = rest_delay
             delay = delay + rest_delay
@@ -97,7 +100,7 @@ def generate_timestamps(p_prob,
             PREVIOUS_STATE = REST
 
         else:
-            current_time = t(t_count - 1) + delay
+            current_time = t[t_count - 1] + delay
             sleep_delay = timeUntilWakeUp(current_time, day_start, day_end)
             delay = delay + sleep_delay
 
@@ -107,14 +110,21 @@ def generate_timestamps(p_prob,
 
 
 def calcDelay(sigma, previous_delay, lamb, rand_num):
-    mu = sigma * previous_delay + 1 / (lamb * exp(1))
+    try:
+        mu = sigma * previous_delay + 1 / (lamb * exp(1))
+    except OverflowError:
+        mu = (sigma * previous_delay)/10e6 + 1 / (lamb * exp(1))
     rate = 1 / mu
-    delay = -log(rand_num) / rate
+    try:
+        delay = -log(rand_num) / rate
+    except OverflowError:
+        rate = rate * 10e6
+        delay = -log(rand_num) / rate
     return delay
 
 
 def isSleeping(current_time, day_start, day_end):
-    second_of_day = current_time % 24 * 3600
+    second_of_day = (current_time % 24.0) * 3600.0
     if day_start < second_of_day < day_end:
         sleeping = False
     else:
@@ -123,7 +133,7 @@ def isSleeping(current_time, day_start, day_end):
     return sleeping
 
 
-def timeUntilWakeUp(current_time, day_start, day_end):
+def timeUntilWakeUp(current_time: float, day_start: float, day_end: float):
     day_length = 24 * 3600
     second_of_day = current_time - day_length * floor(current_time / day_length)
 

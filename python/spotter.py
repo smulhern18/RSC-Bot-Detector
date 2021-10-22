@@ -26,18 +26,25 @@ def extract_dissimilarity(rsc_parameters, actual_timestamps, num_bins):
     dissimilarity = [0.0] * len(synthetic_counts)
 
     for i in range(len(synthetic_counts)):
-        actual_counts[i] = actual_counts[i]/actual_sum
-        synthetic_counts[i] = synthetic_counts[i]/synthetic_sum
+        if actual_sum != 0:
+            actual_counts[i] = actual_counts[i]/actual_sum
+        if synthetic_sum != 0:
+            synthetic_counts[i] = synthetic_counts[i]/synthetic_sum
         dissimilarity[i] = abs(actual_counts[i] - synthetic_counts[i])
 
     return sum(dissimilarity)
 
 
 def no_centers_log_bin_hist(deltas, num_bins):
-    min_exp = log10(min(deltas))
+    minimum = min(deltas)
+    if minimum <= 0:
+        minimum: float = 1.0
+    min_exp = log10(minimum)
     max_exp = log10(max(deltas))
     bucket_lim = logspace(min_exp, max_exp, num=num_bins, base=10, dtype=float)
-    bucket_lim = unique(ceil(bucket_lim))
+    for bucket in bucket_lim:
+        bucket = ceil(bucket)
+    bucket_lim = unique(bucket_lim)
     centers = [0] * (len(bucket_lim) - 1)
     for i in range(len(bucket_lim) - 1):
         centers[i] = bucket_lim[i] + bucket_lim[i+1] - bucket_lim[i]/2
@@ -52,22 +59,24 @@ def centers_log_bin_hist(deltas, centers, bucket_lim):
 
 
 def log_bin_hist(deltas, centers, bucket_lim):
-    counts = [1.0] * len(centers)
-
-    for i in range(deltas):
-        if deltas[i] < bucket_lim[0]:
+    counts = [0] * len(centers)
+    for delta in deltas:
+        if delta < bucket_lim[0]:
             continue
-
+        elif delta > bucket_lim[-1]:
+            continue
         found_bucket = False
         bucket = 0
-        for bucket in range(len(centers)+1):
+        for bucket in range(len(centers)):
             bucket_upper_lim = bucket_lim[bucket + 1]
-            if deltas[i] > bucket_upper_lim:
+            bucket_lower_lim = bucket_lim[bucket]
+            if bucket_upper_lim > delta > bucket_lower_lim:
                 found_bucket = True
                 break
         if found_bucket:
-            counts[bucket - 1] += 1
-
+            counts[bucket] += 1
+        else:
+            continue
     return counts
 
 

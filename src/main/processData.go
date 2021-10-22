@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -23,6 +22,8 @@ type JsonFile struct {
 }
 
 func main() {
+
+	before := time.Now()
 
 	// have workers read in all the files in the dataFiles directory
 	fileInfos, _ := ioutil.ReadDir("./dataFiles")
@@ -59,6 +60,9 @@ func main() {
 
 	secondGroup.Wait()
 
+	after := time.Now()
+
+	print("Time elapsed: " + (after.Sub(before).String()) + "\n")
 }
 
 func processFile(filename string, jsonFiles chan JsonFile) {
@@ -122,17 +126,21 @@ func processFile(filename string, jsonFiles chan JsonFile) {
 
 func makeJsonFile(jsonFile JsonFile) {
 	print("creating file: " + jsonFile.fileName + "\n")
-	var data string
 	jsonObjects := jsonFile.jsonObjects
-	data += "["
+	file, err := os.Create("./jsonFiles/" + jsonFile.fileName + ".json")
+	if err != nil {
+		return
+	}
+	w := bufio.NewWriter(file)
 	for integer := range jsonObjects {
 		jsonObject := jsonObjects[integer]
-		data += "{\"author\":\""+jsonObject.author+"\",\"created_utc\":\""+strconv.Itoa(jsonObject.createdUtc)+"\"},"
+		_, _ = w.WriteString("{\"author\":\"" + jsonObject.author + "\",\"created_utc\":\"" + strconv.Itoa(jsonObject.createdUtc) + "\"}\n")
 	}
-	data = strings.TrimRight(data, ",")
-	data += "]"
 
-	err := os.WriteFile("./jsonFiles/"+jsonFile.fileName+".json", []byte(data), 0777)
+	err = w.Flush()
+	if err != nil {
+		return
+	}
 	print("Wrote file: " + jsonFile.fileName + "\n")
 	checkError(err)
 }

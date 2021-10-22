@@ -12,3 +12,6 @@ processedDatafiles
 
 # Omit .idea, because personal files
 .idea
+venv
+venv310
+**/__pycache__

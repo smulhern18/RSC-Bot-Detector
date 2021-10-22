@@ -16,7 +16,10 @@ curl -O https://files.pushshift.io/reddit/comments/RC_2020-06.zst;
 ##2021 data
 curl -O https://files.pushshift.io/reddit/comments/RC_2021-06.zst;
 
-
+mkdir dataFiles
+mkdir rawData
+mkdir jsonFiles
+mkdir processDataFiles
 
 #Unzip to Datafiles
 echo Unzipping Files!
@@ -32,4 +35,4 @@ mv *.bz2 ./rawData;
 mv *.xz ./rawData;
 mv *.zst ./rawData;
 
-echo DONE!
+echo Done!
