@@ -112,12 +112,12 @@ def generate_timestamps(p_prob: float,
 def calcDelay(sigma, previous_delay, lamb, rand_num):
     try:
         mu = sigma * previous_delay + 1 / (lamb * exp(1))
-    except OverflowError:
+    except RuntimeError:
         mu = (sigma * previous_delay)/10e6 + 1 / (lamb * exp(1))
     rate = 1 / mu
     try:
         delay = -log(rand_num) / rate
-    except OverflowError:
+    except RuntimeError:
         rate = rate * 10e6
         delay = -log(rand_num) / rate
     return delay

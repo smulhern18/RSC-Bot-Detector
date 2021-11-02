@@ -1,7 +1,6 @@
 import json
 import math
 import os
-import threading
 from concurrent.futures.thread import ThreadPoolExecutor
 
 import strconv
@@ -29,14 +28,6 @@ def train(training_file_name: str, testing_file_name: str):
 
     print("done sorting training file")
 
-    # optimizer Portion
-    # function to use: spotter.extract_dissimilarity
-    # needs timestamps, rsc parameters, and num of bins
-    param_guess = [0.4, 0.4, 0.6, 0.5, 1.1, 2.5, 5, 8 / 24]
-    result = optimizer_function(rsc_parameters=param_guess, timestamps=training_timestamps.values(), num_bins=10)
-
-    print("done with optimizer")
-
     testing_timestamps = read_json_file(testing_file_name, user_map)
     testing_target = []
     testing_features = []
@@ -51,13 +42,29 @@ def train(training_file_name: str, testing_file_name: str):
 
     print("done sorting testing file")
 
-    for username, timestamps in training_timestamps:
-        training_features.append(extract_dissimilarity(result, timestamps, 30))
+    # optimizer Portion
+    # function to use: spotter.extract_dissimilarity
+    # needs timestamps, rsc parameters, and num of bins
+    param_guess = [0.4, 0.4, 0.6, 0.5, 1.1, 2.5, 5, 8 / 24]
+    result = optimizer_function(rsc_parameters=param_guess, timestamps=list(training_timestamps.values()), num_bins=10)
 
-    for username, timestamps in testing_timestamps:
-        testing_features.append(extract_dissimilarity(result, timestamps, 30))
+    print("done with optimizer")
+    print("len of training_timestamps", len(training_timestamps))
+    print("len of testing_timestamps", len(testing_timestamps))
 
-    # classifier portion
+    for username in training_timestamps:
+        training_features.append([extract_dissimilarity(result, training_timestamps[username], 30)])
+
+    for username in testing_timestamps:
+        testing_features.append([extract_dissimilarity(result, testing_timestamps[username], 30)])
+
+    print("done processing dissimilarity")
+
+    trainingClassifier(training_features, testing_features, training_target, testing_target)
+    print(result)
+
+
+def trainingClassifier(training_features, testing_features, training_target, testing_target):
     classifier = GaussianNB()
     classifier.fit(training_features, training_target)
 
@@ -70,9 +77,9 @@ def train(training_file_name: str, testing_file_name: str):
     print("Params of the classifer:")
 
     print(classifier.get_params())
+    print(classifier.priors)
 
-    print("Result of the Optimizer:")
-    print(result)
+    return
 
 
 def get_bot_file():
@@ -115,20 +122,20 @@ def read_json_file(filename: str, user_map: dict):
     for username in to_remove:
         store_list.pop(username)
 
-
-
     return store_list
 
 
 def optimizer_function(rsc_parameters, timestamps, num_bins):
 
     average_parameters = [0.0] * 8
-    all_parameters = [average_parameters] * len(timestamps)
+    all_parameters = [average_parameters] * 1000
     i = 0
     futures = []
-    with ThreadPoolExecutor(max_workers=64) as e:
-        for timestamp in timestamps:
-            futures.append(e.submit(threading_function, rsc_parameters, timestamp, num_bins))
+    with ThreadPoolExecutor(max_workers=256) as e:
+        j = 0
+        while j < 256:
+            futures.append(e.submit(threading_function, rsc_parameters, timestamps[j], num_bins))
+            j += 1
 
     print("Processing futures")
     for future in futures:
@@ -156,6 +163,7 @@ def threading_function(rsc_parameters, timestamp, num_bins):
                          max_nfev=100)
     x: list[float] = popt.x.tolist()
     return x
+
 
 if __name__ == "__main__":
     os.chdir("F:\\MQP Data\\jsonFiles")
