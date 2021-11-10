@@ -60,19 +60,62 @@ def train(training_file_name: str, testing_file_name: str):
 
     print("done processing dissimilarity")
 
-    trainingClassifier(training_features, testing_features, training_target, testing_target)
+    trainingClassifier(training_features,
+                       testing_features,
+                       training_target,
+                       testing_target,
+                       training_timestamps,
+                       testing_timestamps,
+                       user_map)
+
     print(result)
 
 
-def trainingClassifier(training_features, testing_features, training_target, testing_target):
+def trainingClassifier(training_features,
+                       testing_features,
+                       training_target,
+                       testing_target,
+                       training_timestamps,
+                       testing_timestamps,
+                       user_map):
     classifier = GaussianNB()
     classifier.fit(training_features, training_target)
 
     print("done fitting classifier")
 
-    score = classifier.score(testing_features, testing_target)
+    score = classifier.score(X=testing_features, y=testing_target)
 
     print("The accuracy of the Classifier is:", score)
+
+    futures = []
+
+    with ThreadPoolExecutor(max_workers=1024) as e:
+        for i in range(len(testing_features)):
+            username = testing_timestamps.keys()[i]
+            dissimilarity = testing_features[i]
+            is_bot = user_map[username]
+            futures.append(e.submit(classifier_prediction_function, username, dissimilarity, is_bot, classifier))
+
+    true_positive = 0
+    true_negative = 0
+    false_positive = 0
+    false_negative = 0
+
+    for future in futures:
+        result = future.result()
+        if result == "TP":
+            true_positive += 1
+        elif result == "TN":
+            true_negative += 1
+        elif result == "FP":
+            false_positive += 1
+        elif result == "FN":
+            false_negative += 1
+            
+    print(true_positive, "true positives")
+    print(true_negative, "true negatives")
+    print(false_positive, "false positives")
+    print(false_negative, "false negatives")
 
     print("Params of the classifer:")
 
@@ -127,13 +170,15 @@ def read_json_file(filename: str, user_map: dict):
 
 def optimizer_function(rsc_parameters, timestamps, num_bins):
 
+    max_values = 256
+
     average_parameters = [0.0] * 8
-    all_parameters = [average_parameters] * 1000
+    all_parameters = [average_parameters] * max_values
     i = 0
     futures = []
     with ThreadPoolExecutor(max_workers=256) as e:
         j = 0
-        while j < 256:
+        while j < max_values:
             futures.append(e.submit(threading_function, rsc_parameters, timestamps[j], num_bins))
             j += 1
 
@@ -144,7 +189,7 @@ def optimizer_function(rsc_parameters, timestamps, num_bins):
 
     total_parameters = [sum(x) for x in zip(*all_parameters)]
     for i in range(len(total_parameters)):
-        average_parameters[i] = total_parameters[i] / len(timestamps)
+        average_parameters[i] = total_parameters[i] / max_values
 
     return average_parameters
 
@@ -164,6 +209,23 @@ def threading_function(rsc_parameters, timestamp, num_bins):
     x: list[float] = popt.x.tolist()
     return x
 
+
+def classifier_prediction_function(username, dissimilarity, truth, classifier):
+
+    # run through the classification
+    prediction = classifier.predict(dissimilarity)
+
+    result = "TN"
+
+    # Determine truth
+    if prediction != truth and truth == 1:
+        result = "FN"
+    elif prediction != truth and truth == 0:
+        result = "FP"
+    elif truth == 1:
+        result = "TP"
+
+    return result
 
 if __name__ == "__main__":
     os.chdir("F:\\MQP Data\\jsonFiles")

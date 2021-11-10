@@ -19,7 +19,7 @@ def extract_dissimilarity(rsc_parameters, actual_timestamps, num_bins):
     synthetic_counts, centers, bucket_lims = no_centers_log_bin_hist(synthetic_delays, num_bins)
 
     actual_delays = calcDeltas(actual_timestamps)
-    actual_counts = centers_log_bin_hist(actual_delays, centers, bucket_lims)
+    actual_counts = log_bin_hist(actual_delays, centers, bucket_lims)
 
     synthetic_sum = sum(synthetic_counts)
     actual_sum = sum(actual_counts)
@@ -52,10 +52,6 @@ def no_centers_log_bin_hist(deltas, num_bins):
     counts = log_bin_hist(deltas, centers, bucket_lim)
 
     return counts, centers, bucket_lim
-
-
-def centers_log_bin_hist(deltas, centers, bucket_lim):
-    return log_bin_hist(deltas, centers, bucket_lim)
 
 
 def log_bin_hist(deltas, centers, bucket_lim):

@@ -9,8 +9,6 @@ SLEEP = 3
 PREVIOUS_STATE = NONE
 CURRENT_STATE = ACTIVE
 
-warnings.filterwarnings("error")
-
 
 def generate_timestamps(p_prob: float,
                         q_prob: float,
@@ -21,6 +19,7 @@ def generate_timestamps(p_prob: float,
                         lambda_rest: float,
                         total_sleep: float,
                         t_size: int):
+    warnings.filterwarnings("error")
 
     global CURRENT_STATE
     global PREVIOUS_STATE
