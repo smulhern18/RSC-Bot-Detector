@@ -38,6 +38,7 @@ func main() {
 
 	close(fileNameChannel)
 
+	var firstGroup sync.WaitGroup
 	var secondGroup sync.WaitGroup
 
 	go func() {
@@ -53,8 +54,14 @@ func main() {
 
 	for item := range fileNameChannel {
 		item := item
-		processFile(item, jsonFileChannel)
+		go func() {
+			firstGroup.Add(1)
+			processFile(item, jsonFileChannel)
+			firstGroup.Done()
+		}()
 	}
+
+	firstGroup.Wait()
 
 	close(jsonFileChannel)
 
@@ -62,10 +69,11 @@ func main() {
 
 	after := time.Now()
 
-	print("Time elapsed: " + (after.Sub(before).String()) + "\n")
+	print("\nTime elapsed: " + (after.Sub(before).String()) + "\n")
 }
 
 func processFile(filename string, jsonFiles chan JsonFile) {
+	print("Processing file: " + filename + " \n")
 	file, err := os.Open("./dataFiles/" + filename)
 	checkError(err)
 	scanner := bufio.NewScanner(file)
@@ -86,20 +94,30 @@ func processFile(filename string, jsonFiles chan JsonFile) {
 	}()
 
 	go func() {
-		for {
-			res, ok := <-fileContentsChan
-			if ok == false {
-				break
-			} else {
-				group.Add(1)
-				go func() {
-					processJsonString(res, jsonObjectsChan)
-					group.Done()
-				}()
+		group.Add(1)
+		var jsonObjectsGroup sync.WaitGroup
+		jsonObjectsGroup.Add(1)
+		go func() {
+			jsonObjectsGroup.Add(1)
+			for {
+				res, ok := <-fileContentsChan
+				if ok == false {
+					break
+				} else {
+					go func() {
+						jsonObjectsGroup.Add(1)
+						processJsonString(res, jsonObjectsChan)
+						jsonObjectsGroup.Done()
+					}()
+				}
 			}
-		}
-		time.Sleep(5)
+			jsonObjectsGroup.Done()
+		}()
+		time.Sleep(20)
+		jsonObjectsGroup.Done()
+		jsonObjectsGroup.Wait()
 		close(jsonObjectsChan)
+		group.Done()
 	}()
 
 	var jsonGroup sync.WaitGroup
@@ -113,19 +131,18 @@ func processFile(filename string, jsonFiles chan JsonFile) {
 		jsonGroup.Done()
 	}()
 
-
-
-	print("Waiting for group to be done! FileName: " + filename + " \n")
 	group.Wait()
-	print("Processing Json now! Filename: " + filename + " \n")
+
+	err = file.Close()
+	checkError(err)
+	scanner = nil
+
 	jsonGroup.Wait()
-	print("all threads done for Filename: " + filename + "\n")
 
 	jsonFiles<-jsonFile
 }
 
 func makeJsonFile(jsonFile JsonFile) {
-	print("creating file: " + jsonFile.fileName + "\n")
 	jsonObjects := jsonFile.jsonObjects
 	file, err := os.Create("./jsonFiles/" + jsonFile.fileName + ".json")
 	if err != nil {
@@ -143,6 +160,7 @@ func makeJsonFile(jsonFile JsonFile) {
 	}
 	print("Wrote file: " + jsonFile.fileName + "\n")
 	checkError(err)
+	jsonFile.jsonObjects = nil
 }
 
 func processJsonString(jsonString string, jsonObjects chan JsonObject) {
@@ -159,7 +177,6 @@ func processJsonString(jsonString string, jsonObjects chan JsonObject) {
 	case float64:
 		createdDateTime = int(i.(float64))
 	default:
-		print("createdDatetime is 0")
 		createdDateTime = 0
 	}
 	checkError(err)

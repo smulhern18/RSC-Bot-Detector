@@ -109,6 +109,7 @@ def generate_timestamps(p_prob: float,
 
 
 def calcDelay(sigma, previous_delay, lamb, rand_num):
+    warnings.filterwarnings("error")
     try:
         mu = sigma * previous_delay + 1 / (lamb * exp(1))
     except RuntimeError:

@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import math
 import os
@@ -11,12 +12,12 @@ from spotter import extract_dissimilarity
 
 
 def train(training_file_name: str, testing_file_name: str):
+
     user_map = get_bot_file()
     print("done reading in the botfile")
 
     training_timestamps = read_json_file(training_file_name, user_map)
     training_target = []
-    training_features = []
     to_remove = []
     for username in training_timestamps:
         timestamps = training_timestamps[username]
@@ -30,7 +31,6 @@ def train(training_file_name: str, testing_file_name: str):
 
     testing_timestamps = read_json_file(testing_file_name, user_map)
     testing_target = []
-    testing_features = []
     to_remove = []
     for username in testing_timestamps:
         timestamps = testing_timestamps[username]
@@ -46,22 +46,11 @@ def train(training_file_name: str, testing_file_name: str):
     # function to use: spotter.extract_dissimilarity
     # needs timestamps, rsc parameters, and num of bins
     param_guess = [0.4, 0.4, 0.6, 0.5, 1.1, 2.5, 5, 8 / 24]
-    result = optimizer_function(rsc_parameters=param_guess, timestamps=list(training_timestamps.values()), num_bins=10)
+    result = optimizer_function(rsc_parameters=param_guess, timestamps=list(training_timestamps.values()), num_bins=30)
 
     print("done with optimizer")
-    print("len of training_timestamps", len(training_timestamps))
-    print("len of testing_timestamps", len(testing_timestamps))
 
-    for username in training_timestamps:
-        training_features.append([extract_dissimilarity(result, training_timestamps[username], 30)])
-
-    for username in testing_timestamps:
-        testing_features.append([extract_dissimilarity(result, testing_timestamps[username], 30)])
-
-    print("done processing dissimilarity")
-
-    trainingClassifier(training_features,
-                       testing_features,
+    trainingClassifier(result,
                        training_target,
                        testing_target,
                        training_timestamps,
@@ -71,13 +60,45 @@ def train(training_file_name: str, testing_file_name: str):
     print(result)
 
 
-def trainingClassifier(training_features,
-                       testing_features,
+def trainingClassifier(result,
                        training_target,
                        testing_target,
                        training_timestamps,
                        testing_timestamps,
                        user_map):
+
+    training_features = []
+    testing_features = []
+
+    i = 0
+    training_futures = []
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=32768)
+    for username in training_timestamps:
+        if i > 10000:
+            break
+        training_futures.append(executor.submit(extract_dissimilarity, result, training_timestamps[username], 30))
+        i += 1
+
+    for future in training_futures:
+        training_features.append([future.result])
+
+    print("done processing training dissimilarity")
+
+    i = 0
+
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=32768)
+    testing_futures = []
+    for username in testing_timestamps:
+        if i > 10000:
+            break
+        testing_futures.append(executor.submit(extract_dissimilarity, result, testing_timestamps[username], 30))
+        i += 1
+
+    for future in testing_futures:
+        testing_features.append([future.result])
+
+    print("done processing testing dissimilarity")
+
     classifier = GaussianNB()
     classifier.fit(training_features, training_target)
 
@@ -89,12 +110,12 @@ def trainingClassifier(training_features,
 
     futures = []
 
-    with ThreadPoolExecutor(max_workers=1024) as e:
+    with ThreadPoolExecutor(max_workers=16384) as e:
         for i in range(len(testing_features)):
             username = testing_timestamps.keys()[i]
             dissimilarity = testing_features[i]
             is_bot = user_map[username]
-            futures.append(e.submit(classifier_prediction_function, username, dissimilarity, is_bot, classifier))
+            futures.append(e.submit(classifier_prediction_function, dissimilarity, is_bot, classifier))
 
     true_positive = 0
     true_negative = 0
@@ -182,7 +203,6 @@ def optimizer_function(rsc_parameters, timestamps, num_bins):
             futures.append(e.submit(threading_function, rsc_parameters, timestamps[j], num_bins))
             j += 1
 
-    print("Processing futures")
     for future in futures:
         all_parameters[i] = future.result()
         i += 1
@@ -210,7 +230,7 @@ def threading_function(rsc_parameters, timestamp, num_bins):
     return x
 
 
-def classifier_prediction_function(username, dissimilarity, truth, classifier):
+def classifier_prediction_function(dissimilarity, truth, classifier):
 
     # run through the classification
     prediction = classifier.predict(dissimilarity)
@@ -227,6 +247,9 @@ def classifier_prediction_function(username, dissimilarity, truth, classifier):
 
     return result
 
+
 if __name__ == "__main__":
     os.chdir("F:\\MQP Data\\jsonFiles")
+    train("RC_2015-10.json", "RC_2015-11.json")
+    train("RC_2015-10.json", "RC_2015-11.json")
     train("RC_2015-10.json", "RC_2015-11.json")
