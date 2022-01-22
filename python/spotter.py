@@ -1,9 +1,11 @@
 from math import log10, ceil
+from os import getpid
+
 from numpy import logspace, unique
 import rsc
 
 
-def extract_dissimilarity(rsc_parameters, actual_timestamps, num_bins):
+def extract_dissimilarity(actual_timestamps, rsc_parameters, num_bins):
 
     synthetic_timestamps = rsc.generate_timestamps(rsc_parameters[0],
                                                    rsc_parameters[1],
@@ -82,3 +84,6 @@ def calcDeltas(timestamps):
     for i in range(len(timestamps)-1):
         deltas[i] = timestamps[i+1] - timestamps[i]
     return deltas
+
+if __name__ == "__main__":
+    print(extract_dissimilarity(rsc_parameters = [0.4, 0.4, 0.6, 0.5, 1.1, 2.5, 5.0, 0.3333333333333333], actual_timestamps=[0,1,2,3,4,5,6,7,8,9,10], num_bins=30))
